@@ -13,7 +13,7 @@ export function toIter(source: unknown) {
     if (Symbol.iterator in source && typeof Reflect.get(source, Symbol.iterator) === "function")
         return new Iter(Reflect.get(source, Symbol.iterator).call(source));
 
-    if ("next" in source && Reflect.get(source, "next") === "function") {
+    if ("next" in source && typeof Reflect.get(source, "next") === "function") {
         const next = Reflect.get(source, "next").bind(source);
 
         return new Iter(

@@ -1,10 +1,9 @@
 import { toIter } from "./helpers/toIter.js";
 import type { IterResolvable } from "./types.js";
 
-export const iter = <T = never>(i?: IterResolvable<T>) => {
-    if (typeof i === "undefined") return toIter([]);
+export const iter = <T = never>(i?: IterResolvable<T>) => toIter(i ?? []);
 
-    return toIter(i);
-};
+export const empty = () => iter();
 
-console.log(iter([1, 2]).cmp([1, 2]));
+//TODO: need Option<T> type
+export const from_fn = <T, R>(f: () => IteratorResult<T, R>) => toIter({ next: f });

@@ -21,6 +21,7 @@ export class Iter<T> {
         this.#iter = i;
     }
 
+    //TODO: need Option<T> type
     next() {
         if (this.#consumed) throw new ReferenceError(`this iterator has been consumed and cannot be used`);
 
@@ -35,10 +36,10 @@ export class Iter<T> {
         return !done ? value : undefined;
     }
 
+    //TODO: need Option<T> type
     next_if(func: (item: T) => boolean) {
         const item = this.peek();
 
-        //TODO: need Option<T> type
         if (typeof item === "undefined") return undefined;
 
         if (func.call(undefined, item)) return this.next()!;
@@ -46,10 +47,12 @@ export class Iter<T> {
         return undefined;
     }
 
+    //TODO: need Option<T> type
     next_if_eq(expected: T) {
         return this.next_if((item) => deepEqual(item, expected));
     }
 
+    //TODO: need Result<T, E> type
     advance_by(n: number) {
         if (n < 0 || !Number.isInteger(n)) throw new TypeError(`n is not a nonnegative integer`);
 
@@ -364,11 +367,15 @@ export class Iter<T> {
         return this;
     }
 
-    // ge(other: IterResolvable<T>): boolean;
-    ge(@ResolveTo(Iter) other: Iter<T>) {}
+    ge(other: IterResolvable<T>): [T] extends [number] ? boolean : never;
+    ge(@ResolveTo(Iter) other: Iter<T>) {
+        return [0, 1].includes(this.cmp(other));
+    }
 
-    // gt(other: IterResolvable<T>): boolean;
-    gt(@ResolveTo(Iter) other: Iter<T>) {}
+    gt(other: IterResolvable<T>): [T] extends [number] ? boolean : never;
+    gt(@ResolveTo(Iter) other: Iter<T>) {
+        return this.cmp(other) === 1;
+    }
 
     inspect(f: (item: T) => void) {
         this.#consumed = true;
@@ -458,11 +465,26 @@ export class Iter<T> {
         return true;
     }
 
-    is_sorted() {}
+    is_sorted(): [T] extends [number] ? boolean : never;
+    is_sorted() {
+        const collection = this.collect() as number[];
 
-    is_sorted_by() {}
+        return collection.every((v, i, a) => (i + 1 in a ? v <= a[i + 1] : true));
+    }
 
-    is_sorted_by_key() {}
+    is_sorted_by(compare: (self: T, other: T) => boolean) {
+        const collection = this.collect();
+
+        return collection.every((v, i, a) => (i + 1 in a ? compare.call(undefined, v, a[i + 1]) : true));
+    }
+
+    is_sorted_by_key(f: (item: T) => number) {
+        const collection = this.collect();
+
+        const keys = collection.map(f);
+
+        return collection.every((_, i, a) => (i + 1 in a ? keys[i] <= keys[i + 1] : true));
+    }
 
     last() {
         let last, item;
@@ -472,11 +494,15 @@ export class Iter<T> {
         return last;
     }
 
-    // le(other: IterResolvable<T>): boolean;
-    le(@ResolveTo(Iter) other: Iter<T>) {}
+    le(other: IterResolvable<T>): [T] extends [number] ? boolean : never;
+    le(@ResolveTo(Iter) other: Iter<T>) {
+        return [-1, 0].includes(this.cmp(other));
+    }
 
-    // lt(other: IterResolvable<T>): boolean;
-    lt(@ResolveTo(Iter) other: Iter<T>) {}
+    lt(other: IterResolvable<T>): [T] extends [number] ? boolean : never;
+    lt(@ResolveTo(Iter) other: Iter<T>) {
+        return this.cmp(other) === -1;
+    }
 
     map<U>(f: (item: T) => U): Iter<U> {
         this.#consumed = true;
@@ -509,7 +535,7 @@ export class Iter<T> {
         return Math.max(...collection);
     }
 
-    max_by(compare: (self: T, item: T) => number) {
+    max_by(compare: (self: T, other: T) => number) {
         const collection = this.collect();
 
         collection.sort(compare);
@@ -534,7 +560,7 @@ export class Iter<T> {
         return Math.min(...collection);
     }
 
-    min_by(compare: (self: T, item: T) => number) {
+    min_by(compare: (self: T, other: T) => number) {
         const collection = this.collect();
 
         collection.sort(compare);
@@ -557,6 +583,7 @@ export class Iter<T> {
         return !this.eq(other);
     }
 
+    //TODO: need Result<T, E> type
     next_chunk(n: number) {
         if (n < 0 || !Number.isInteger(n)) throw new TypeError(`n is not a nonnegative integer`);
 
@@ -583,12 +610,6 @@ export class Iter<T> {
         return this.next();
     }
 
-    // partial_cmp(other: IterResolvable<T>): number | undefined;
-    partial_cmp(@ResolveTo(Iter) other: Iter<T>) {}
-
-    // partial_cmp_by(other: IterResolvable<T>, partial_cmp: (self: T, other: T) => number | undefined): number | undefined;
-    partial_cmp_by(@ResolveTo(Iter) other: Iter<T>, partial_cmp: (self: T, other: T) => number | undefined) {}
-
     partition(f: (item: T) => boolean) {
         const result = [[], []] as [T[], T[]];
 
@@ -607,8 +628,7 @@ export class Iter<T> {
         return result;
     }
 
-    partition_in_place(predicate: (item: T) => boolean) {}
-
+    //TODO: need Option<T> type
     peek() {
         const peeked = this.#iter.next();
 
@@ -627,6 +647,7 @@ export class Iter<T> {
         return peeked.done ? undefined : (peeked.value as T);
     }
 
+    //TODO: need Option<T> type
     peek_mut() {
         return this.peek();
     }
@@ -674,10 +695,6 @@ export class Iter<T> {
         return init;
     }
 
-    rev() {}
-
-    rposition() {}
-
     scan<S, U>(initial_state: S, f: (_: { state: S }, item: T) => U) {
         this.#consumed = true;
 
@@ -700,10 +717,6 @@ export class Iter<T> {
                 } while (!this.#done);
             }.call(this),
         );
-    }
-
-    size_hint(): never {
-        throw new ReferenceError(`impossible to hint size of iterator`);
     }
 
     skip(n: number) {
