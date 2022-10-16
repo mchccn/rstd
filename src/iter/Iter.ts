@@ -135,9 +135,9 @@ export class Iter<T> {
         );
     }
 
-    // cmp(other: IterResolvable<T>): Ord;
+    cmp(other: IterResolvable<T>): [T] extends [number] ? Ord : never;
     cmp(@ResolveTo(Iter) other: Iter<T>) {
-        // TODO: decide what this method does
+        return this.cmp_by(other, (a, b) => +a - +b);
     }
 
     cmp_by(other: IterResolvable<T>, cmp: (self: T, other: T) => number): Ord;
@@ -146,17 +146,24 @@ export class Iter<T> {
             const a = this.next();
             const b = other.next();
 
+            if (this.#done || other.#done) {
+                if (!this.#done) return 1;
+
+                if (!other.#done) return -1;
+            }
+
             const ord = cmp.call(undefined, a!, b!);
 
-            if (ord !== 0) return Number.isNaN(ord) ? 0 : (Math.sign(ord) as Ord);
+            if (ord !== 0) {
+                this.#consumed = true;
+                other.#consumed = true;
+
+                return Number.isNaN(ord) ? 0 : (Math.sign(ord) as Ord);
+            }
         }
 
         this.#consumed = true;
         other.#consumed = true;
-
-        if (!this.#done) return 1;
-
-        if (!other.#done) return -1;
 
         return 0;
     }
@@ -695,7 +702,9 @@ export class Iter<T> {
         );
     }
 
-    size_hint() {}
+    size_hint(): never {
+        throw new ReferenceError(`impossible to hint size of iterator`);
+    }
 
     skip(n: number) {
         if (n < 0 || !Number.isInteger(n)) throw new TypeError(`n is not a nonnegative integer`);
@@ -822,14 +831,19 @@ export class Iter<T> {
         );
     }
 
+    //TODO: need Option<T> type
     try_collect() {}
 
+    //TODO: need Option<T> type
     try_find() {}
 
+    //TODO: need Option<T> type
     try_fold() {}
 
+    //TODO: need Option<T> type
     try_for_each() {}
 
+    //TODO: need Option<T> type
     try_reduce() {}
 
     unzip(): [T] extends [readonly [infer A, infer B]] ? [A[], B[]] : never;

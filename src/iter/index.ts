@@ -7,6 +7,4 @@ export const iter = <T = never>(i?: IterResolvable<T>) => {
     return toIter(i);
 };
 
-const a = iter([1, 2, 3, 4, 5, 6, 7, 8, 9]);
-
-console.log(a.min_by((a, b) => b - a));
+console.log(iter([1, 2]).cmp([1, 2]));
