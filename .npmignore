@@ -1,0 +1,8 @@
+src/
+docs/
+tests/
+.github/
+.vscode/
+.mocharc.json
+.prettierrc.json
+tsconfig.json

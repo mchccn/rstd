@@ -1,0 +1,35 @@
+{
+    "name": "rstd",
+    "version": "0.0.1",
+    "description": "Rust's standard library repurposed for TypeScript.",
+    "main": "dist/index.js",
+    "engines": {
+        "node": ">=17"
+    },
+    "scripts": {},
+    "repository": {
+        "type": "git",
+        "url": "git+https://github.com/kelsny/rstd.git"
+    },
+    "type": "module",
+    "keywords": [
+        "rust",
+        "iterator",
+        "typescript"
+    ],
+    "author": "kelsny <cursors.owo.uwu@gmail.com>",
+    "license": "MIT",
+    "bugs": {
+        "url": "https://github.com/kelsny/rstd/issues"
+    },
+    "homepage": "https://github.com/kelsny/rstd#readme",
+    "devDependencies": {
+        "@types/node": "^18.8.3",
+        "typescript": "^4.8.4"
+    },
+    "dependencies": {
+        "@types/deep-equal": "^1.0.1",
+        "deep-equal": "^2.0.5",
+        "reflect-metadata": "^0.1.13"
+    }
+}
