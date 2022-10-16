@@ -288,8 +288,8 @@ export class Iter<T> {
         // return this.filter_map(f).next();
     }
 
-    flat_map<U>(f: (item: T) => IterResolvable<U>) {
-        // return this.map(f).flatten();
+    flat_map<U>(f: (item: T) => IterResolvable<U>): Iter<U> {
+        return this.map(f).flatten();
     }
 
     flatten(): [T] extends [IterResolvable<infer U>] ? Iter<U> : never;
@@ -495,17 +495,55 @@ export class Iter<T> {
         },
     ) {}
 
-    max() {}
+    max(): [T] extends [number] ? number : never;
+    max() {
+        const collection = this.collect() as number[];
 
-    max_by() {}
+        return Math.max(...collection);
+    }
 
-    max_by_key() {}
+    max_by(compare: (self: T, item: T) => number) {
+        const collection = this.collect();
 
-    min() {}
+        collection.sort(compare);
 
-    min_by() {}
+        return collection[0];
+    }
 
-    min_by_key() {}
+    max_by_key(f: (item: T) => number) {
+        const collection = this.collect();
+
+        const keys = collection.map(f);
+
+        const score = Math.max(...keys);
+
+        return collection[keys.length - keys.reverse().findIndex((key) => key === score) - 1];
+    }
+
+    min(): [T] extends [number] ? number : never;
+    min() {
+        const collection = this.collect() as number[];
+
+        return Math.min(...collection);
+    }
+
+    min_by(compare: (self: T, item: T) => number) {
+        const collection = this.collect();
+
+        collection.sort(compare);
+
+        return collection[collection.length - 1];
+    }
+
+    min_by_key(f: (item: T) => number) {
+        const collection = this.collect();
+
+        const keys = collection.map(f);
+
+        const score = Math.min(...keys);
+
+        return collection[keys.length - keys.reverse().findIndex((key) => key === score) - 1];
+    }
 
     ne(other: IterResolvable<T>): boolean;
     ne(@ResolveTo(Iter) other: Iter<T>) {
@@ -538,11 +576,11 @@ export class Iter<T> {
         return this.next();
     }
 
-    // partial_cmp(other: IterResolvable<T>): Ord | undefined;
+    // partial_cmp(other: IterResolvable<T>): number | undefined;
     partial_cmp(@ResolveTo(Iter) other: Iter<T>) {}
 
-    // partial_cmp_by(other: IterResolvable<T>, partial_cmp: (self: T, other: T) => Ord | undefined): Ord | undefined;
-    partial_cmp_by(@ResolveTo(Iter) other: Iter<T>, partial_cmp: (self: T, other: T) => Ord | undefined) {}
+    // partial_cmp_by(other: IterResolvable<T>, partial_cmp: (self: T, other: T) => number | undefined): number | undefined;
+    partial_cmp_by(@ResolveTo(Iter) other: Iter<T>, partial_cmp: (self: T, other: T) => number | undefined) {}
 
     partition(f: (item: T) => boolean) {
         const result = [[], []] as [T[], T[]];
@@ -794,7 +832,7 @@ export class Iter<T> {
 
     try_reduce() {}
 
-    unzip(): T extends readonly [infer A, infer B] ? [A[], B[]] : never;
+    unzip(): [T] extends [readonly [infer A, infer B]] ? [A[], B[]] : never;
     unzip() {
         const collection = this.collect();
 

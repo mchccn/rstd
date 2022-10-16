@@ -7,6 +7,6 @@ export const iter = <T = never>(i?: IterResolvable<T>) => {
     return toIter(i);
 };
 
-const a = iter([1, 2, 3, 4, 5, 6, 7, 8, 9]).zip([true, false, true, false, true, false]).unzip();
+const a = iter([1, 2, 3, 4, 5, 6, 7, 8, 9]);
 
-console.log(a);
+console.log(a.min_by((a, b) => b - a));
