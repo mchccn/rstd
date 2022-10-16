@@ -794,7 +794,34 @@ export class Iter<T> {
 
     try_reduce() {}
 
-    unzip() {}
+    unzip(): T extends readonly [infer A, infer B] ? [A[], B[]] : never;
+    unzip() {
+        const collection = this.collect();
 
-    zip() {}
+        return collection.reduce<[unknown[], unknown[]]>(
+            (tuple, item) => {
+                const [a, b] = item as [unknown, unknown];
+
+                return [tuple[0].concat(a), tuple[1].concat(b)];
+            },
+            [[], []],
+        );
+    }
+
+    zip<U>(other: IterResolvable<U>): Iter<[T, U]>;
+    zip<U>(@ResolveTo(Iter) other: Iter<U>) {
+        this.#consumed = true;
+        other.#consumed = true;
+
+        return new Iter<[T, U]>({
+            next: function (this: Iter<T>) {
+                const a = this.#iter.next();
+                const b = other.#iter.next();
+
+                if (a.done || b.done) return { value: undefined, done: true as true };
+
+                return { value: [a.value, b.value] as [T, U], done: false as false };
+            }.bind(this),
+        });
+    }
 }

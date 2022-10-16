@@ -7,15 +7,6 @@ export const iter = <T = never>(i?: IterResolvable<T>) => {
     return toIter(i);
 };
 
-const a = iter([1, 2, 3, 4, 5, 6, 7, 8, 9]).take_while((x) => x < 5);
+const a = iter([1, 2, 3, 4, 5, 6, 7, 8, 9]).zip([true, false, true, false, true, false]).unzip();
 
-console.log(a.next());
-console.log(a.next());
-console.log(a.next());
-console.log(a.next());
-console.log(a.next());
-console.log(a.next());
-console.log(a.next());
-console.log(a.next());
-console.log(a.next());
-console.log(a.next());
+console.log(a);
