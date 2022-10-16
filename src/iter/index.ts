@@ -42,14 +42,3 @@ export const successors = <T>(first: T, succ: (item: T) => T) =>
     );
 
 export const zip = <A, B>(a: IterResolvable<A>, b: IterResolvable<B>) => toIter(a).zip(b);
-
-console.log(
-    repeat_with(() => empty())
-        .take(5)
-        .collect(),
-);
-console.log(
-    Array(5)
-        .fill(0)
-        .map(() => empty()),
-);
