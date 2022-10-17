@@ -1,3 +1,4 @@
+import type { Option } from "../option/index.js";
 import { toIter } from "./helpers/toIter.js";
 import type { IterResolvable } from "./types.js";
 
@@ -5,8 +6,14 @@ export const iter = <T = never>(i?: IterResolvable<T>) => toIter(i ?? []);
 
 export const empty = () => iter();
 
-//TODO: need Option<T> type
-export const from_fn = <T, R>(f: () => IteratorResult<T, R>) => toIter({ next: f });
+export const from_fn = <T>(f: () => Option<T>) =>
+    toIter({
+        next() {
+            const opt = f.call(undefined);
+
+            return opt.is_none() ? { value: undefined, done: true } : { value: opt.unwrap(), done: false };
+        },
+    });
 
 export const from_generator = <T, R, N>(generator: Generator<T, R, N>) => toIter(generator);
 
@@ -33,11 +40,18 @@ export const repeat_with = <T>(repeater: () => T) =>
         })(),
     );
 
-//TODO: need Option<T> type
-export const successors = <T>(first: T, succ: (item: T) => T) =>
+export const successors = <T>(first: Option<T>, succ: (item: T) => Option<T>) =>
     toIter(
         (function* () {
-            //
+            if (first.is_none()) return;
+
+            let last = first;
+
+            do {
+                yield last.unwrap();
+
+                last = succ.call(undefined, last.unwrap());
+            } while (last.is_some());
         })(),
     );
 

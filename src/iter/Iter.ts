@@ -1,17 +1,16 @@
 import deepEqual from "deep-equal";
+import { None, Option, Some } from "../option/index.js";
+import { Namespaced } from "../utils/namespaced.js";
+import { ResolveTo, UseResolvables } from "../utils/resolvable.js";
 import { cloned } from "./helpers/cloned.js";
 import { toIter } from "./helpers/toIter.js";
 import { toNumber } from "./helpers/toNumber.js";
 import type { IterResolvable, NumberResolvable, Ord } from "./types.js";
-import { Namespaced } from "./utils/namespaced.js";
-import { ResolveTo, UseResolvables } from "./utils/resolvable.js";
 
 @UseResolvables()
 @Namespaced("Iter<T>", { errors: true })
 export class Iter<T> {
     #iter: Iterator<T, unknown, undefined>;
-
-    #done = false;
 
     #consumed = false;
 
@@ -21,53 +20,48 @@ export class Iter<T> {
         this.#iter = i;
     }
 
-    //TODO: need Option<T> type
-    next() {
+    next(): Option<T> {
         if (this.#consumed) throw new ReferenceError(`this iterator has been consumed and cannot be used`);
 
-        if (this.#fused.dead) return undefined;
+        if (this.#fused.dead) return None;
 
         const { value, done } = this.#iter.next();
 
-        this.#done = !!done;
-
         if (this.#fused.called && typeof value === "undefined") this.#fused.dead = true;
 
-        return !done ? value : undefined;
+        return !done ? Some(value) : None;
     }
 
-    //TODO: need Option<T> type
-    next_if(func: (item: T) => boolean) {
+    next_if(func: (item: T) => boolean): Option<T> {
         const item = this.peek();
 
-        if (typeof item === "undefined") return undefined;
+        if (item.is_none()) return None;
 
-        if (func.call(undefined, item)) return this.next()!;
+        if (func.call(undefined, item.unwrap())) return this.next();
 
-        return undefined;
+        return None;
     }
 
-    //TODO: need Option<T> type
-    next_if_eq(expected: T) {
+    next_if_eq(expected: T): Option<T> {
         return this.next_if((item) => deepEqual(item, expected));
     }
 
     //TODO: need Result<T, E> type
-    advance_by(n: number) {
+    advance_by(n: number) /*: Result<undefined, number> */ {
         if (n < 0 || !Number.isInteger(n)) throw new TypeError(`n is not a nonnegative integer`);
 
-        for (let i = 0; i < n; i++, this.next()) {
-            if (this.#done) return i;
+        for (let i = 0, item; i < n; i++, item = this.next()) {
+            if (item?.is_none()) return i; // Err
         }
 
-        return undefined;
+        return undefined; // Ok
     }
 
-    all(f: (item: T) => boolean) {
+    all(f: (item: T) => boolean): boolean {
         let item = this.next();
 
-        while (!this.#done) {
-            if (!f.call(undefined, item!)) return false;
+        while (item.is_some()) {
+            if (!f.call(undefined, item.unwrap())) return false;
 
             item = this.next();
         }
@@ -75,25 +69,16 @@ export class Iter<T> {
         return true;
     }
 
-    any(f: (item: T) => boolean) {
+    any(f: (item: T) => boolean): boolean {
         let item = this.next();
 
-        while (!this.#done) {
-            if (f.call(undefined, item!)) return true;
+        while (item.is_some()) {
+            if (f.call(undefined, item.unwrap())) return true;
 
             item = this.next();
         }
 
         return false;
-    }
-
-    by_ref() {
-        const i = new Iter(this.#iter);
-
-        i.#done = this.#done;
-        i.#consumed = this.#consumed;
-
-        return i;
     }
 
     chain(other: IterResolvable<T>): Iter<T>;
@@ -112,7 +97,7 @@ export class Iter<T> {
         });
     }
 
-    cloned() {
+    cloned(): Iter<T> {
         const [next, done] = cloned(this.#iter);
 
         this.#iter = (function* () {
@@ -145,17 +130,20 @@ export class Iter<T> {
 
     cmp_by(other: IterResolvable<T>, cmp: (self: T, other: T) => number): Ord;
     cmp_by(@ResolveTo(Iter) other: Iter<T>, cmp: (self: T, other: T) => number) {
-        while (!this.#done && !other.#done) {
-            const a = this.next();
-            const b = other.next();
+        let a, b;
+        while (!a?.is_none() && !b?.is_none()) {
+            a = this.next();
+            b = other.next();
 
-            if (this.#done || other.#done) {
-                if (!this.#done) return 1;
+            if (a.is_none() || b.is_none()) {
+                if (a.is_some()) return 1;
 
-                if (!other.#done) return -1;
+                if (b.is_some()) return -1;
+
+                return 0;
             }
 
-            const ord = cmp.call(undefined, a!, b!);
+            const ord = cmp.call(undefined, a.unwrap(), b.unwrap());
 
             if (ord !== 0) {
                 this.#consumed = true;
@@ -171,33 +159,36 @@ export class Iter<T> {
         return 0;
     }
 
-    collect() {
-        const result: T[] = [];
+    collect(): T[] {
+        const result = [];
 
-        while (!this.#done) result.push(this.next()!);
+        let item;
+        while (!item?.is_none()) {
+            item = this.next();
+
+            if (item.is_some()) result.push(item.unwrap());
+        }
 
         this.#consumed = true;
-
-        result.pop();
 
         return result;
     }
 
-    collect_into(collection: T[]) {
+    collect_into(collection: T[]): T[] {
         collection.push(...this.collect());
 
         return collection;
     }
 
-    copied() {
+    copied(): Iter<T> {
         return this.cloned();
     }
 
-    count() {
+    count(): number {
         return this.collect().length;
     }
 
-    cycle() {
+    cycle(): Iter<T> {
         this.#consumed = true;
 
         return new Iter(
@@ -216,22 +207,23 @@ export class Iter<T> {
         );
     }
 
-    enumerate() {
+    enumerate(): Iter<[number, T]> {
         this.#consumed = true;
 
         return new Iter(
             function* (this: Iter<T>) {
                 let i = 0;
 
+                let item;
                 do {
                     this.#consumed = false;
 
-                    const item = this.next();
+                    item = this.next();
 
                     this.#consumed = true;
 
-                    if (!this.#done) yield [i++, item] as [number, T];
-                } while (!this.#done);
+                    if (item.is_some()) yield [i++, item.unwrap()] as [number, T];
+                } while (item.is_some());
             }.call(this),
         );
     }
@@ -243,11 +235,14 @@ export class Iter<T> {
 
     eq_by(other: IterResolvable<T>, eq: (self: T, other: T) => boolean): boolean;
     eq_by(@ResolveTo(Iter) other: Iter<T>, eq: (self: T, other: T) => boolean) {
-        while (!this.#done && !other.#done) {
-            const a = this.next();
-            const b = other.next();
+        let a, b;
+        while (!a?.is_none() && !b?.is_none()) {
+            a = this.next();
+            b = other.next();
 
-            const same = eq.call(undefined, a!, b!);
+            if (a.is_none() || b.is_none()) return a.is_none() && b.is_none();
+
+            const same = eq.call(undefined, a.unwrap(), b.unwrap());
 
             if (!same) return false;
         }
@@ -255,47 +250,62 @@ export class Iter<T> {
         this.#consumed = true;
         other.#consumed = true;
 
-        if (!this.#done || !other.#done) return false;
+        if (!a?.is_none() || !b?.is_none()) return false;
 
         return true;
     }
 
-    filter(f: (item: T) => boolean) {
+    //TODO: add type predicate support
+    filter(f: (item: T) => boolean): Iter<T> {
         this.#consumed = true;
 
         return new Iter(
             function* (this: Iter<T>) {
+                let item;
                 do {
                     this.#consumed = false;
 
-                    let item = this.next();
+                    item = this.next();
 
-                    while (!this.#done && !f.call(undefined, item!)) item = this.next();
+                    while (item.is_some() && !f.call(undefined, item.unwrap())) item = this.next();
 
-                    if (!this.#done) yield item as T;
+                    if (item.is_some()) yield item.unwrap();
 
                     this.#consumed = true;
-                } while (!this.#done);
+                } while (item.is_some());
             }.call(this),
         );
     }
 
-    filter_map(
-        f: (item: T) => {
-            /* TODO: need Option<T> type */
-        },
-    ) {}
+    filter_map<U>(f: (item: T) => Option<U>): Iter<U> {
+        this.#consumed = true;
 
-    find(f: (item: T) => boolean) {
+        return new Iter(
+            function* (this: Iter<T>) {
+                let item;
+                do {
+                    this.#consumed = false;
+
+                    item = this.next();
+
+                    if (item.is_some()) {
+                        const opt = f.call(undefined, item.unwrap());
+
+                        if (opt.is_some()) yield opt.unwrap();
+                    }
+
+                    this.#consumed = true;
+                } while (item.is_some());
+            }.call(this),
+        );
+    }
+
+    find(f: (item: T) => boolean): Option<T> {
         return this.filter(f).next();
     }
 
-    find_map(
-        f: (item: T) => {
-            /* TODO: need Option<T> type */
-        },
-    ) {
-        // return this.filter_map(f).next();
+    find_map<U>(f: (item: T) => Option<U>): Option<U> {
+        return this.filter_map(f).next();
     }
 
     flat_map<U>(f: (item: T) => IterResolvable<U>): Iter<U> {
@@ -308,60 +318,65 @@ export class Iter<T> {
 
         return new Iter(
             function* (this: Iter<T>) {
+                let item;
                 do {
                     this.#consumed = false;
 
-                    const item = this.next();
+                    item = this.next();
 
                     this.#consumed = true;
 
-                    if (!this.#done) {
-                        if (!item || typeof item !== "object") throw new TypeError(`unable to flatten this value`);
+                    if (item.is_some()) {
+                        if (!item.unwrap() || typeof item.unwrap() !== "object")
+                            throw new TypeError(`unable to flatten this value`);
 
-                        const source = toIter(item!);
+                        const source = toIter(item.unwrap());
 
+                        let el;
                         do {
-                            const el = source.next();
+                            el = source.next();
 
-                            if (!source.#done) yield el;
-                        } while (!source.#done);
+                            if (el.is_some()) yield el.unwrap();
+                        } while (el.is_some());
                     }
-                } while (!this.#done);
+                } while (item.is_some());
             }.call(this),
         );
     }
 
-    fold<U>(init: U, f: (folded: U, item: T) => U) {
+    fold<U>(init: U, f: (folded: U, item: T) => U): U {
         this.#consumed = true;
 
+        let item;
         do {
             this.#consumed = false;
 
-            const item = this.next();
+            item = this.next();
 
             this.#consumed = true;
 
-            if (!this.#done) init = f.call(undefined, init, item!);
-        } while (!this.#done);
+            if (item.is_some()) init = f.call(undefined, init, item.unwrap());
+        } while (item.is_some());
 
         return init;
     }
 
-    for_each(f: (item: T) => void) {
+    for_each(f: (item: T) => void): void {
         this.#consumed = true;
 
+        let item;
         do {
             this.#consumed = false;
 
-            const item = this.next();
+            item = this.next();
 
             this.#consumed = true;
 
-            if (!this.#done) f.call(undefined, item!);
-        } while (!this.#done);
+            if (item.is_some()) f.call(undefined, item.unwrap());
+        } while (item.is_some());
     }
 
-    fuse() {
+    fuse(): Iter<T> {
         this.#fused.called = true;
 
         return this;
@@ -377,88 +392,94 @@ export class Iter<T> {
         return this.cmp(other) === 1;
     }
 
-    inspect(f: (item: T) => void) {
+    inspect(f: (item: T) => void): Iter<T> {
         this.#consumed = true;
 
         return new Iter<T>(
             function* (this: Iter<T>) {
+                let item;
                 do {
                     this.#consumed = false;
 
-                    const item = this.next();
+                    item = this.next();
 
-                    f.call(undefined, item!);
+                    if (item.is_some()) {
+                        f.call(undefined, item.unwrap());
 
-                    if (!this.#done) yield item as T;
+                        yield item.unwrap();
+                    }
 
                     this.#consumed = true;
-                } while (!this.#done);
+                } while (item.is_some());
             }.call(this),
         );
     }
 
-    intersperse<U>(separator: U) {
+    intersperse<U>(separator: U): Iter<T | U> {
         this.#consumed = true;
 
         let emitted = false;
 
         return new Iter<T | U>(
             function* (this: Iter<T>) {
+                let item;
                 do {
                     this.#consumed = false;
 
-                    const item = this.next();
+                    item = this.next();
 
                     this.#consumed = true;
 
-                    if (!this.#done) {
+                    if (item.is_some()) {
                         if (emitted) yield structuredClone(separator);
-                        yield item as T;
+                        yield item.unwrap();
                         emitted = true;
                     }
-                } while (!this.#done);
+                } while (item.is_some());
             }.call(this),
         );
     }
 
-    intersperse_with<U>(separator: () => U) {
+    intersperse_with<U>(separator: () => U): Iter<T | U> {
         this.#consumed = true;
 
         let emitted = false;
 
         return new Iter<T | U>(
             function* (this: Iter<T>) {
+                let item;
                 do {
                     this.#consumed = false;
 
-                    const item = this.next();
+                    item = this.next();
 
                     this.#consumed = true;
 
-                    if (!this.#done) {
+                    if (item.is_some()) {
                         if (emitted) yield separator.call(undefined);
-                        yield item as T;
+                        yield item.unwrap();
                         emitted = true;
                     }
-                } while (!this.#done);
+                } while (item.is_some());
             }.call(this),
         );
     }
 
-    is_partitioned(predicate: (item: T) => boolean) {
+    is_partitioned(predicate: (item: T) => boolean): boolean {
         let partitioned = false;
 
+        let item;
         do {
-            const item = this.next();
+            item = this.next();
 
-            if (!this.#done) {
-                const result = predicate.call(undefined, item!);
+            if (item.is_some()) {
+                const result = predicate.call(undefined, item.unwrap());
 
                 if (!result) partitioned = true;
 
                 if (partitioned && result) return false;
             }
-        } while (!this.#done);
+        } while (item.is_some());
 
         this.#consumed = true;
 
@@ -472,13 +493,13 @@ export class Iter<T> {
         return collection.every((v, i, a) => (i + 1 in a ? v <= a[i + 1] : true));
     }
 
-    is_sorted_by(compare: (self: T, other: T) => boolean) {
+    is_sorted_by(compare: (self: T, other: T) => boolean): boolean {
         const collection = this.collect();
 
         return collection.every((v, i, a) => (i + 1 in a ? compare.call(undefined, v, a[i + 1]) : true));
     }
 
-    is_sorted_by_key(f: (item: T) => number) {
+    is_sorted_by_key(f: (item: T) => number): boolean {
         const collection = this.collect();
 
         const keys = collection.map(f);
@@ -486,10 +507,13 @@ export class Iter<T> {
         return collection.every((_, i, a) => (i + 1 in a ? keys[i] <= keys[i + 1] : true));
     }
 
-    last() {
-        let last, item;
+    last(): Option<T> {
+        let last: Option<T> = None;
+        let item: Option<T> = None;
 
-        while (!this.#done) [last, item] = [item, this.next()];
+        do {
+            [last, item] = [item, this.next()];
+        } while (item.is_some());
 
         return last;
     }
@@ -509,24 +533,44 @@ export class Iter<T> {
 
         return new Iter<U>(
             function* (this: Iter<T>) {
+                let item;
                 do {
                     this.#consumed = false;
 
-                    const item = this.next();
+                    item = this.next();
 
-                    if (!this.#done) yield f.call(undefined, item!);
+                    if (item.is_some()) yield f.call(undefined, item.unwrap());
 
                     this.#consumed = true;
-                } while (!this.#done);
+                } while (item.is_some());
             }.call(this),
         );
     }
 
-    map_while(
-        predicate: (item: T) => {
-            /* TODO: need Option<T> type */
-        },
-    ) {}
+    map_while<U>(predicate: (item: T) => Option<U>): Iter<U> {
+        this.#consumed = true;
+
+        return new Iter<U>(
+            function* (this: Iter<T>) {
+                let item;
+                do {
+                    this.#consumed = false;
+
+                    item = this.next();
+
+                    if (item.is_some()) {
+                        const opt = predicate.call(undefined, item.unwrap());
+
+                        if (opt.is_none()) return;
+
+                        yield opt.unwrap();
+                    }
+
+                    this.#consumed = true;
+                } while (item.is_some());
+            }.call(this),
+        );
+    }
 
     max(): [T] extends [number] ? number : never;
     max() {
@@ -535,22 +579,24 @@ export class Iter<T> {
         return Math.max(...collection);
     }
 
-    max_by(compare: (self: T, other: T) => number) {
+    max_by(compare: (self: T, other: T) => number): Option<T> {
         const collection = this.collect();
 
         collection.sort(compare);
 
-        return collection[0];
+        return collection.length ? Some(collection[0]) : None;
     }
 
-    max_by_key(f: (item: T) => number) {
+    max_by_key(f: (item: T) => number): Option<T> {
         const collection = this.collect();
 
         const keys = collection.map(f);
 
         const score = Math.max(...keys);
 
-        return collection[keys.length - keys.reverse().findIndex((key) => key === score) - 1];
+        const index = keys.length - keys.reverse().findIndex((key) => key === score) - 1;
+
+        return index in collection ? Some(collection[index]) : None;
     }
 
     min(): [T] extends [number] ? number : never;
@@ -560,22 +606,24 @@ export class Iter<T> {
         return Math.min(...collection);
     }
 
-    min_by(compare: (self: T, other: T) => number) {
+    min_by(compare: (self: T, other: T) => number): Option<T> {
         const collection = this.collect();
 
         collection.sort(compare);
 
-        return collection[collection.length - 1];
+        return collection.length ? Some(collection[collection.length - 1]) : None;
     }
 
-    min_by_key(f: (item: T) => number) {
+    min_by_key(f: (item: T) => number): Option<T> {
         const collection = this.collect();
 
         const keys = collection.map(f);
 
         const score = Math.min(...keys);
 
-        return collection[keys.length - keys.reverse().findIndex((key) => key === score) - 1];
+        const index = keys.length - keys.reverse().findIndex((key) => key === score) - 1;
+
+        return index in collection ? Some(collection[index]) : None;
     }
 
     ne(other: IterResolvable<T>): boolean;
@@ -584,7 +632,7 @@ export class Iter<T> {
     }
 
     //TODO: need Result<T, E> type
-    next_chunk(n: number) {
+    next_chunk(n: number) /*: Result<T[], Iter<T>> */ {
         if (n < 0 || !Number.isInteger(n)) throw new TypeError(`n is not a nonnegative integer`);
 
         const result: T[] = [];
@@ -592,15 +640,15 @@ export class Iter<T> {
         for (let i = 0; i < n; i++) {
             const item = this.next();
 
-            if (this.#done && i !== n) return result;
+            if (item.is_none()) return result; // Err
 
-            result.push(item!);
+            result.push(item.unwrap());
         }
 
-        return result;
+        return result; // Ok
     }
 
-    nth(n: number) {
+    nth(n: number): Option<T> {
         if (n < 0 || !Number.isInteger(n)) throw new TypeError(`n is not a nonnegative integer`);
 
         for (let i = 0; i < n - 1; i++) {
@@ -610,26 +658,26 @@ export class Iter<T> {
         return this.next();
     }
 
-    partition(f: (item: T) => boolean) {
+    partition(f: (item: T) => boolean): [T[], T[]] {
         const result = [[], []] as [T[], T[]];
 
+        let item;
         do {
-            const item = this.next();
+            item = this.next();
 
-            if (!this.#done) {
-                const bool = f.call(undefined, item!);
+            if (item.is_some()) {
+                const bool = f.call(undefined, item.unwrap());
 
-                result[+!bool].push(item!);
+                result[+!bool].push(item.unwrap());
             }
-        } while (!this.#done);
+        } while (item.is_some());
 
         this.#consumed = true;
 
         return result;
     }
 
-    //TODO: need Option<T> type
-    peek() {
+    peek(): Option<T> {
         const peeked = this.#iter.next();
 
         const source = this.#iter;
@@ -640,36 +688,31 @@ export class Iter<T> {
             yield peeked.value;
 
             let item;
-
             while (!item?.done) yield (item = source.next()).value as T;
         }.call(this);
 
-        return peeked.done ? undefined : (peeked.value as T);
+        return peeked.done ? None : Some(peeked.value);
     }
 
-    //TODO: need Option<T> type
-    peek_mut() {
-        return this.peek();
-    }
-
-    position(predicate: (item: T) => boolean) {
-        let item = this.next();
-
+    position(predicate: (item: T) => boolean): Option<number> {
         let index = 0;
 
-        while (!this.#done) {
-            if (predicate.call(undefined, item!)) return index;
-
+        let item;
+        do {
             this.#consumed = false;
 
             item = this.next();
 
             this.#consumed = true;
 
-            index++;
-        }
+            if (item.is_none()) return None;
 
-        return undefined;
+            if (predicate.call(undefined, item.unwrap())) return Some(index);
+
+            index++;
+        } while (item.is_some());
+
+        return None;
     }
 
     product(): [T] extends [NumberResolvable] ? number : never;
@@ -677,49 +720,57 @@ export class Iter<T> {
         return this.fold(1, (product, item) => product * toNumber(item));
     }
 
-    reduce(f: (reduced: T, item: T) => T) {
-        if (this.#done) return undefined;
+    reduce(f: (reduced: T, item: T) => T): Option<T> {
+        const start = this.next();
 
-        let init = this.next();
+        if (start.is_none()) return None;
 
+        let init = start.unwrap();
+
+        let item;
         do {
             this.#consumed = false;
 
-            const item = this.next();
+            item = this.next();
 
             this.#consumed = true;
 
-            if (!this.#done) init = f.call(undefined, init!, item!);
-        } while (!this.#done);
+            if (item.is_some()) init = f.call(undefined, init, item.unwrap());
+        } while (item.is_some());
 
-        return init;
+        return Some(init);
     }
 
-    scan<S, U>(initial_state: S, f: (_: { state: S }, item: T) => U) {
+    scan<S, U>(initial_state: S, f: (_: { state: S }, item: T) => Option<U>): Iter<U> {
         this.#consumed = true;
 
         return new Iter<U>(
             function* (this: Iter<T>) {
+                let item;
                 do {
                     this.#consumed = false;
 
-                    const item = this.next();
+                    item = this.next();
 
                     this.#consumed = true;
 
-                    if (!this.#done) {
+                    if (item.is_some()) {
                         const _ = { state: initial_state };
 
-                        yield f.call(undefined, _, item!);
+                        const opt = f.call(undefined, _, item.unwrap());
+
+                        if (opt.is_none()) return;
+
+                        yield opt.unwrap();
 
                         initial_state = _.state;
                     }
-                } while (!this.#done);
+                } while (item.is_some());
             }.call(this),
         );
     }
 
-    skip(n: number) {
+    skip(n: number): Iter<T> {
         if (n < 0 || !Number.isInteger(n)) throw new TypeError(`n is not a nonnegative integer`);
 
         this.#consumed = true;
@@ -730,63 +781,68 @@ export class Iter<T> {
 
                 while (n--) this.next();
 
+                let item;
                 do {
                     this.#consumed = false;
 
-                    const item = this.next();
+                    item = this.next();
 
                     this.#consumed = true;
 
-                    if (!this.#done) yield item as T;
-                } while (!this.#done);
+                    if (item.is_some()) yield item.unwrap();
+                } while (item.is_some());
             }.call(this),
         );
     }
 
-    skip_while(predicate: (item: T) => boolean) {
+    skip_while(predicate: (item: T) => boolean): Iter<T> {
         this.#consumed = true;
 
         return new Iter(
             function* (this: Iter<T>) {
                 this.#consumed = false;
 
-                let item = this.#iter.next();
-                while (!item.done && predicate.call(undefined, item.value)) item = this.#iter.next();
+                let skipped = this.#iter.next();
+                while (!skipped.done && predicate.call(undefined, skipped.value)) skipped = this.#iter.next();
 
-                yield item.value;
+                yield skipped.value as T;
 
+                let item;
                 do {
                     this.#consumed = false;
 
-                    const item = this.next();
+                    item = this.next();
 
                     this.#consumed = true;
 
-                    if (!this.#done) yield item as T;
-                } while (!this.#done);
+                    if (item.is_some()) yield item.unwrap();
+                } while (item.is_some());
             }.call(this),
         );
     }
 
-    step_by(step: number) {
+    step_by(step: number): Iter<T> {
         if (step <= 0 || !Number.isInteger(step)) throw new TypeError(`n is not a positive integer`);
 
         this.#consumed = true;
 
         return new Iter(
             function* (this: Iter<T>) {
+                let item;
                 do {
                     this.#consumed = false;
 
-                    const item = this.next();
+                    item = this.next();
+
+                    if (item.is_none()) return;
 
                     let n = step;
                     while (--n) this.next();
 
                     this.#consumed = true;
 
-                    yield item as T;
-                } while (!this.#done);
+                    yield item.unwrap();
+                } while (item.is_some());
             }.call(this),
         );
     }
@@ -796,7 +852,7 @@ export class Iter<T> {
         return this.fold(0, (product, item) => product + toNumber(item));
     }
 
-    take(n: number) {
+    take(n: number): Iter<T> {
         if (n < 0 || !Number.isInteger(n)) throw new TypeError(`n is not a nonnegative integer`);
 
         this.#consumed = true;
@@ -805,59 +861,46 @@ export class Iter<T> {
             function* (this: Iter<T>) {
                 this.#consumed = false;
 
+                let item;
                 do {
                     if (!n--) return;
 
                     this.#consumed = false;
 
-                    const item = this.next();
+                    item = this.next();
 
                     this.#consumed = true;
 
-                    if (!this.#done) yield item as T;
-                } while (!this.#done);
+                    if (item.is_some()) yield item.unwrap();
+                } while (item.is_some());
             }.call(this),
         );
     }
 
-    take_while(predicate: (item: T) => boolean) {
+    take_while(predicate: (item: T) => boolean): Iter<T> {
         this.#consumed = true;
 
         return new Iter(
             function* (this: Iter<T>) {
                 this.#consumed = false;
 
+                let item;
                 do {
                     this.#consumed = false;
 
-                    const item = this.next();
+                    item = this.next();
 
                     this.#consumed = true;
 
-                    if (!this.#done) {
-                        if (!predicate.call(undefined, item!)) return;
+                    if (item.is_some()) {
+                        if (!predicate.call(undefined, item.unwrap())) return;
 
-                        yield item as T;
+                        yield item.unwrap();
                     }
-                } while (!this.#done);
+                } while (item.is_some());
             }.call(this),
         );
     }
-
-    //TODO: need Option<T> type
-    try_collect() {}
-
-    //TODO: need Option<T> type
-    try_find() {}
-
-    //TODO: need Option<T> type
-    try_fold() {}
-
-    //TODO: need Option<T> type
-    try_for_each() {}
-
-    //TODO: need Option<T> type
-    try_reduce() {}
 
     unzip(): [T] extends [readonly [infer A, infer B]] ? [A[], B[]] : never;
     unzip() {

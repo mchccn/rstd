@@ -1,7 +1,7 @@
 import "reflect-metadata";
-import { toIter } from "../helpers/toIter.js";
-import { toNumber } from "../helpers/toNumber.js";
-import { Iter } from "../Iter.js";
+import { toIter } from "../iter/helpers/toIter.js";
+import { toNumber } from "../iter/helpers/toNumber.js";
+import { Iter } from "../iter/Iter.js";
 
 const IterResolvableKey = "IteratorResolvable";
 const NumberResolvableKey = "NumberResolvable";

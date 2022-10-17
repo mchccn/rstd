@@ -4,7 +4,7 @@ export type IterResolvable<T> =
     | Iter<T>
     | Iterator<T, unknown, undefined>
     | { [Symbol.iterator]: Iterator<T, unknown, undefined> }
-    | T[];
+    | readonly T[];
 
 export type Ord = -1 | 0 | 1;
 

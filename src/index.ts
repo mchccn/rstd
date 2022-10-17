@@ -10,6 +10,7 @@ import {
     successors,
     zip,
 } from "./iter/index.js";
+import * as __option__ from "./option/index.js";
 
 const __iter__ = Object.assign(iter, {
     empty,
@@ -23,4 +24,7 @@ const __iter__ = Object.assign(iter, {
     zip,
 });
 
+// TEST ALL OPTION METHODS
+
 export { __iter__ as iter };
+export { __option__ as option };
