@@ -11,6 +11,7 @@ import {
     zip,
 } from "./iter/index.js";
 import * as __option__ from "./option/index.js";
+import * as __result__ from "./result/index.js";
 
 const __iter__ = Object.assign(iter, {
     empty,
@@ -28,3 +29,4 @@ const __iter__ = Object.assign(iter, {
 
 export { __iter__ as iter };
 export { __option__ as option };
+export { __result__ as result };
