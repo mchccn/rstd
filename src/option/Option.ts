@@ -1,10 +1,12 @@
 import deepEqual from "deep-equal";
 import { toIter } from "../iter/helpers/toIter.js";
+import type { Iter } from "../iter/Iter.js";
+import { Ok, Result } from "../result/Result.js";
 import { Namespaced } from "../utils/namespaced.js";
 import { unenumerable } from "../utils/unenumerable.js";
 
 @Namespaced("Option<T>", { errors: true })
-export class _<T> {
+class _<T> {
     #none;
     #value;
 
@@ -36,20 +38,22 @@ export class _<T> {
         return this.#none ? new _() : new _(structuredClone(this.#value));
     }
 
-    copied() {
+    copied(): Option<T> {
         return this.cloned();
     }
 
-    contains(value: T) {
+    contains(value: T): boolean {
         return this.#none ? false : deepEqual(this.#value, value, { strict: true });
     }
 
-    expect(msg: string) {
+    expect(msg: string): T {
         if (this.#none) throw new Error(msg);
 
         return this.#value;
     }
 
+    filter<U extends T = T>(predicate: (value: T) => value is U): Option<U>;
+    filter<_>(predicate: (value: T) => boolean): Option<T>;
     filter(predicate: (value: T) => boolean): Option<T> {
         if (this.#none) return None;
 
@@ -65,7 +69,7 @@ export class _<T> {
         throw new TypeError(`cannot flatten a value that is not an option`);
     }
 
-    get_or_insert(value: T) {
+    get_or_insert(value: T): T {
         if (this.#none) {
             this.#none = false;
             this.#value = value;
@@ -74,18 +78,18 @@ export class _<T> {
         return this.#value;
     }
 
-    get_or_insert_with(f: () => T) {
+    get_or_insert_with(f: () => T): T {
         return this.get_or_insert(f.call(undefined));
     }
 
-    insert(value: T) {
+    insert(value: T): T {
         this.#none = false;
         this.#value = value;
 
         return this.#value;
     }
 
-    inspect(f: (value: T) => void) {
+    inspect(f: (value: T) => void): Option<T> {
         if (!this.#none) f.call(undefined, this.#value);
 
         return this;
@@ -99,7 +103,7 @@ export class _<T> {
         return !this.#none;
     }
 
-    is_some_and: [T] extends [never] ? (f: (item: never) => boolean) => false : IsSomeAnd<T> = function is_some_and(
+    is_some_and: [T] extends [never] ? (f: (item: never) => boolean) => false : is_some_and<T> = function is_some_and(
         this: _<T>,
         f: (item: T) => boolean,
     ) {
@@ -108,8 +112,8 @@ export class _<T> {
         return f.call(undefined, this.#value);
     } as _<T>["is_some_and"];
 
-    iter() {
-        return this.#none ? toIter([]) : toIter([this.#value]);
+    iter(): Iter<T> {
+        return this.#none ? toIter<T>([]) : toIter([this.#value]);
     }
 
     map<U>(f: (value: T) => U): Option<U> {
@@ -118,13 +122,13 @@ export class _<T> {
         return new _(f.call(undefined, this.#value));
     }
 
-    map_or<U>(fallback: U, f: (value: T) => U) {
+    map_or<U>(fallback: U, f: (value: T) => U): U {
         if (this.#none) return fallback;
 
         return f.call(undefined, this.#value);
     }
 
-    map_or_else<U>(fallback: () => U, f: (value: T) => U) {
+    map_or_else<U>(fallback: () => U, f: (value: T) => U): U {
         if (this.#none) return fallback.call(undefined);
 
         return f.call(undefined, this.#value);
@@ -166,12 +170,14 @@ export class _<T> {
         return none ? None : new _(original);
     }
 
-    //TODO: need Result<T, E> type
+    transpose(): T extends Result<infer O, infer E> ? Result<Option<O>, E> : never;
     transpose() {
-        /* http://localhost:3000/std/option/enum.Option.html#method.transpose */
+        if (this.#none) return Ok(None);
+
+        return this.#value as Result<any, any>;
     }
 
-    unwrap() {
+    unwrap(): T {
         if (this.#none) throw new Error(`called on a \`None\` value`);
 
         return this.#value;
@@ -193,7 +199,7 @@ export class _<T> {
             return this.#value;
         } as _<T>["unwrap_or_else"];
 
-    unwrap_unchecked() {
+    unwrap_unchecked(): T {
         return this.#value;
     }
 
@@ -237,7 +243,7 @@ export class _<T> {
     }
 }
 
-export interface IsSomeAnd<T> {
+export interface is_some_and<T> {
     <U extends T = T>(f: (item: T) => item is U): this is Is & Some<U>;
     <_>(f: (item: T) => boolean): this is Is & Some<T>;
 }

@@ -1,8 +1,8 @@
 import deepEqual from "deep-equal";
-import { option } from "../index.js";
+import { None, Option, Some } from "../option/Option.js";
+import { Namespaced } from "../utils/namespaced.js";
 
-const { Some, None } = option;
-
+@Namespaced("Result<T, E>", { errors: true })
 class _<T, E> {
     #result;
 
@@ -40,6 +40,63 @@ class _<T, E> {
 
     err() {
         return "err" in this.#result ? Some(this.#result.err) : None;
+    }
+
+    expect(msg: string) {
+        if ("err" in this.#result) throw new Error(msg);
+
+        return this.#result.value;
+    }
+
+    expect_err(msg: string) {
+        if ("value" in this.#result) throw new Error(msg);
+
+        return this.#result.err;
+    }
+
+    flatten(): T extends Result<infer U, E> ? Result<U, E> : never;
+    flatten() {
+        if ("err" in this.#result) return Err(this.#result.err);
+
+        const value = this.#result.value as Result<unknown, E>;
+
+        return ("err" in value.#result ? Err(value.#result.err) : Ok(value.#result.value)) as Result<unknown, E>;
+    }
+
+    inspect(f: (value: T) => void): Result<T, E> {
+        if ("value" in this.#result) f.call(undefined, this.#result.value);
+
+        return this;
+    }
+
+    inspect_err(f: (err: E) => void): Result<T, E> {
+        if ("err" in this.#result) f.call(undefined, this.#result.err);
+
+        return this;
+    }
+
+    is_ok(): this is Ok<T> {
+        return "value" in this.#result;
+    }
+
+    transpose(): T extends Option<infer U> ? (U extends U ? Option<Result<U, E>> : never) : never;
+    transpose() {
+        if ("err" in this.#result) return Some(Err(this.#result.err));
+
+        return (this.#result.value as Option<any>).is_none()
+            ? (None as Option<Result<unknown, E>>)
+            : Some(Ok((this.#result.value as Option<any>).unwrap()));
+    }
+
+    static {
+        Reflect.deleteProperty(this, "name");
+
+        Object.defineProperty(this, "name", {
+            value: "Result",
+            writable: false,
+            enumerable: false,
+            configurable: true,
+        });
     }
 }
 

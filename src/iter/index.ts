@@ -34,7 +34,7 @@ export const repeat = <T>(elt: T) =>
     );
 
 export const repeat_with = <T>(repeater: () => T) =>
-    toIter(
+    toIter<T>(
         (function* () {
             while (true) yield repeater.call(undefined);
         })(),

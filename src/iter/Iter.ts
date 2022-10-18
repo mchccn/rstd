@@ -1,5 +1,6 @@
 import deepEqual from "deep-equal";
 import { None, Option, Some } from "../option/index.js";
+import { Err, Ok, Result } from "../result/Result.js";
 import { Namespaced } from "../utils/namespaced.js";
 import { ResolveTo, UseResolvables } from "../utils/resolvable.js";
 import { cloned } from "./helpers/cloned.js";
@@ -46,15 +47,14 @@ export class Iter<T> {
         return this.next_if((item) => deepEqual(item, expected));
     }
 
-    //TODO: need Result<T, E> type
-    advance_by(n: number) /*: Result<undefined, number> */ {
+    advance_by(n: number): Result<undefined, number> {
         if (n < 0 || !Number.isInteger(n)) throw new TypeError(`n is not a nonnegative integer`);
 
         for (let i = 0, item; i < n; i++, item = this.next()) {
-            if (item?.is_none()) return i; // Err
+            if (item?.is_none()) return Err(i); // Err
         }
 
-        return undefined; // Ok
+        return Ok(undefined); // Ok
     }
 
     all(f: (item: T) => boolean): boolean {
@@ -255,7 +255,8 @@ export class Iter<T> {
         return true;
     }
 
-    //TODO: add type predicate support
+    filter<U extends T = T>(f: (item: T) => item is U): Iter<U>;
+    filter<_>(f: (item: T) => boolean): Iter<T>;
     filter(f: (item: T) => boolean): Iter<T> {
         this.#consumed = true;
 
@@ -631,8 +632,7 @@ export class Iter<T> {
         return !this.eq(other);
     }
 
-    //TODO: need Result<T, E> type
-    next_chunk(n: number) /*: Result<T[], Iter<T>> */ {
+    next_chunk(n: number): Result<T[], Iter<T>> {
         if (n < 0 || !Number.isInteger(n)) throw new TypeError(`n is not a nonnegative integer`);
 
         const result: T[] = [];
@@ -640,12 +640,12 @@ export class Iter<T> {
         for (let i = 0; i < n; i++) {
             const item = this.next();
 
-            if (item.is_none()) return result; // Err
+            if (item.is_none()) return Err(toIter(result));
 
             result.push(item.unwrap());
         }
 
-        return result; // Ok
+        return Ok(result);
     }
 
     nth(n: number): Option<T> {
