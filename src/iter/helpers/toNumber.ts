@@ -1,4 +1,4 @@
-import type { NumberResolvable } from "../types.js";
+import type { NumberResolvable } from "../../types.js";
 
 const unableToConvert = new TypeError(`unable to convert this value to a number`);
 

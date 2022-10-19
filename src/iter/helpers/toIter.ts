@@ -1,5 +1,5 @@
+import type { IterResolvable } from "../../types.js";
 import { Iter } from "../Iter.js";
-import type { IterResolvable } from "../types.js";
 
 const unableToConvert = new TypeError(`unable to convert this value to Iter<T>`);
 

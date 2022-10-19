@@ -1,12 +1,12 @@
 import deepEqual from "deep-equal";
 import { None, Option, Some } from "../option/index.js";
 import { Err, Ok, Result } from "../result/Result.js";
+import type { IterResolvable, NumberResolvable, Ord } from "../types.js";
 import { Namespaced } from "../utils/namespaced.js";
 import { ResolveTo, UseResolvables } from "../utils/resolvable.js";
 import { cloned } from "./helpers/cloned.js";
 import { toIter } from "./helpers/toIter.js";
 import { toNumber } from "./helpers/toNumber.js";
-import type { IterResolvable, NumberResolvable, Ord } from "./types.js";
 
 @UseResolvables()
 @Namespaced("Iter<T>", { errors: true })

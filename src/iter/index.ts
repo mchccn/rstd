@@ -1,6 +1,6 @@
 import type { Option } from "../option/index.js";
+import type { IterResolvable } from "../types.js";
 import { toIter } from "./helpers/toIter.js";
-import type { IterResolvable } from "./types.js";
 
 export const iter = <T = never>(i?: IterResolvable<T>) => toIter(i ?? []);
 
