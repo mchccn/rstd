@@ -1,32 +1,20 @@
-import {
-    empty,
-    from_fn,
-    from_generator,
-    iter,
-    once,
-    once_with,
-    repeat,
-    repeat_with,
-    successors,
-    zip,
-} from "./iter/index.js";
+import * as __iter__ from "./iter/index.js";
+import * as __macros__ from "./macros/index.js";
 import * as __option__ from "./option/index.js";
 import * as __result__ from "./result/index.js";
 
-const __iter__ = Object.assign(iter, {
-    empty,
-    from_fn,
-    from_generator,
-    once,
-    once_with,
-    repeat,
-    repeat_with,
-    successors,
-    zip,
-});
-
 // MUST TEST ALL RESULT METHODS
+
+const { Ok, Err } = __result__;
+
+const a = __result__.Ok(42) as __result__.Result<number, string>;
+const b = __result__.Err("") as __result__.Result<number, string>;
+
+console.log(a.and(b));
+
+console.log(Ok(42).and("b"));
 
 export { __iter__ as iter };
 export { __option__ as option };
 export { __result__ as result };
+export { __macros__ as macros };
