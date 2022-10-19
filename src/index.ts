@@ -25,7 +25,7 @@ const __iter__ = Object.assign(iter, {
     zip,
 });
 
-// MUST TEST ALL OPTION METHODS
+// MUST TEST ALL RESULT METHODS
 
 export { __iter__ as iter };
 export { __option__ as option };
