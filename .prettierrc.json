@@ -1,8 +1,8 @@
 {
-    "printWidth": 120,
     "arrowParens": "always",
     "bracketSpacing": true,
     "endOfLine": "lf",
+    "printWidth": 120,
     "quoteProps": "as-needed",
     "semi": true,
     "tabWidth": 4,

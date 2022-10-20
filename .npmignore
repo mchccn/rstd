@@ -1,6 +1,7 @@
 src/
 docs/
 tests/
+assets/
 .github/
 .vscode/
 .mocharc.json

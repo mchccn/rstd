@@ -1,9 +1,9 @@
 {
     "compilerOptions": {
         "target": "esnext",
+        "module": "esnext",
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,
-        "module": "esnext",
         "moduleResolution": "node",
         "declaration": true,
         "baseUrl": ".",
