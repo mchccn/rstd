@@ -12,7 +12,7 @@ const b = __result__.Err("") as __result__.Result<number, string>;
 
 console.log(a.and(b));
 
-console.log(Ok(42).and("b"));
+console.log(Ok(42).and(b));
 
 export { __iter__ as iter };
 export { __option__ as option };
