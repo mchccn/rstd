@@ -29,11 +29,11 @@ class _<T, E> {
         return "err" in this.#result ? Err(structuredClone(this.#result.err)) : Ok(structuredClone(this.#result.value));
     }
 
-    contains<T>(x: T): boolean {
+    contains(x: T): boolean {
         return "value" in this.#result && deepEqual(x, this.#result.value, { strict: true });
     }
 
-    contains_err<E>(f: E): boolean {
+    contains_err(f: E): boolean {
         return "err" in this.#result && deepEqual(f, this.#result.err, { strict: true });
     }
 
@@ -78,15 +78,13 @@ class _<T, E> {
         return this;
     }
 
-    into_err(): this extends Err<E> ? Err<E> : never;
-    into_err() {
+    into_err(): Err<E> {
         if ("err" in this.#result) return Err(this.#result.err);
 
         throw new Error(`called on an \`Ok\` value`);
     }
 
-    into_ok(): this extends Ok<T> ? Ok<T> : never;
-    into_ok() {
+    into_ok(): Ok<T> {
         if ("err" in this.#result) throw new Error(`called on an \`Err\` value`);
 
         return Ok(this.#result.value);
@@ -120,6 +118,8 @@ class _<T, E> {
     iter(): Iter<T> {
         return "err" in this.#result ? toIter<T>([]) : toIter([this.#result.value]);
     }
+
+    // needs testing:
 
     map<U>(op: (value: T) => U): Result<U, E> {
         if ("err" in this.#result) return Err(this.#result.err);

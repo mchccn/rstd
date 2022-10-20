@@ -1,4 +1,4 @@
 {
-    "typescript.locale": "ja",
+    // "typescript.locale": "ja",
     "typescript.tsdk": "node_modules/typescript/lib"
 }
