@@ -45,12 +45,14 @@ class _<T, E> {
         return "err" in this.#result ? Some(this.#result.err) : None;
     }
 
+    expect(msg: string): this extends Is<infer U, infer _> ? U : T;
     expect(msg: string): T {
         if ("err" in this.#result) throw new Error(msg);
 
         return this.#result.value;
     }
 
+    expect_err(msg: string): this extends Is<infer _, infer U> ? U : E;
     expect_err(msg: string): E {
         if ("value" in this.#result) throw new Error(msg);
 
@@ -95,31 +97,29 @@ class _<T, E> {
         return "err" in this.#result ? this.#result.err : this.#result.value;
     }
 
-    is_err(): this is Err<E> {
+    is_err(): this is Is<T, E> & Err<E> {
         return "err" in this.#result;
     }
 
-    is_err_and<U extends E = E>(f: (err: E) => err is U): this is Err<U>;
-    is_err_and(f: (err: E) => boolean): this is Err<E>;
-    is_err_and(f: (err: E) => boolean): this is Err<E> {
+    is_err_and<U extends E = E>(f: (err: E) => err is U): this is Is<T, U> & Err<U>;
+    is_err_and(f: (err: E) => boolean): this is Is<T, E> & Err<E>;
+    is_err_and(f: (err: E) => boolean): this is Is<T, E> & Err<E> {
         return "err" in this.#result && f.call(undefined, this.#result.err);
     }
 
-    is_ok(): this is Ok<T> {
+    is_ok(): this is Is<T, E> & Ok<T> {
         return "value" in this.#result;
     }
 
-    is_ok_and<U extends T = T>(f: (value: T) => value is U): this is Ok<U>;
-    is_ok_and(f: (value: T) => boolean): this is Ok<E>;
-    is_ok_and(f: (value: T) => boolean): this is Ok<E> {
+    is_ok_and<U extends T = T>(f: (value: T) => value is U): this is Is<U, E> & Ok<U>;
+    is_ok_and(f: (value: T) => boolean): this is Is<T, E> & Ok<T>;
+    is_ok_and(f: (value: T) => boolean): this is Is<T, E> & Ok<T> {
         return "value" in this.#result && f.call(undefined, this.#result.value);
     }
 
     iter(): Iter<T> {
         return "err" in this.#result ? toIter<T>([]) : toIter([this.#result.value]);
     }
-
-    // needs testing:
 
     map<U>(op: (value: T) => U): Result<U, E> {
         if ("err" in this.#result) return Err(this.#result.err);
@@ -170,35 +170,39 @@ class _<T, E> {
             : Some(Ok((this.#result.value as Option<any>).unwrap()));
     }
 
+    unwrap(): this extends Is<infer U, infer _> ? U : T;
     unwrap(): T {
         if ("err" in this.#result) throw new Error(`called on an \`Err\` value`);
 
         return this.#result.value;
     }
 
+    unwrap_err(): this extends Is<infer _, infer U> ? U : E;
     unwrap_err(): E {
         if ("err" in this.#result) return this.#result.err;
 
         throw new Error(`called on an \`Ok\` value`);
     }
 
-    unwrap_err_unchecked(): E {
+    unwrap_err_unchecked(): this extends Is<infer _, infer U> ? U : E {
         return (this.#result as any).err;
     }
 
+    unwrap_or(fallback: T): this extends Is<infer U, infer _> ? U : T;
     unwrap_or(fallback: T): T {
         if ("err" in this.#result) return fallback;
 
         return this.#result.value;
     }
 
+    unwrap_or_else(fallback: (err: E) => T): this extends Is<infer U, infer _> ? U : T;
     unwrap_or_else(fallback: (err: E) => T): T {
         if ("err" in this.#result) return fallback.call(undefined, this.#result.err);
 
         return this.#result.value;
     }
 
-    unwrap_unchecked(): T {
+    unwrap_unchecked(): this extends Is<infer U, infer _> ? U : T {
         return (this.#result as any).value;
     }
 
@@ -216,7 +220,7 @@ class _<T, E> {
 
 const narrowed = Symbol();
 
-export type Is = { [narrowed]: true };
+export type Is<T, E> = { [narrowed]: [T, E] };
 
 export const Ok = <T, E = never>(value: T) => new _<T, E>({ value });
 

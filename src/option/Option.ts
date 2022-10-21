@@ -71,7 +71,7 @@ class _<T> {
         throw new TypeError(`cannot flatten a value that is not an option`);
     }
 
-    get_or_insert(value: [T] extends [never] ? unknown : T): T;
+    get_or_insert(value: [T] extends [never] ? unknown : T): this extends Is<infer U> ? U : T;
     get_or_insert(value: T) {
         if (this.#none) {
             this.#none = false;
@@ -81,12 +81,12 @@ class _<T> {
         return this.#value;
     }
 
-    get_or_insert_with(f: () => [T] extends [never] ? unknown : T): T;
+    get_or_insert_with(f: () => [T] extends [never] ? unknown : T): this extends Is<infer U> ? U : T;
     get_or_insert_with(f: () => T): T {
         return this.get_or_insert(f.call(undefined));
     }
 
-    insert(value: [T] extends [never] ? unknown : T): T;
+    insert(value: [T] extends [never] ? unknown : T): this extends Is<infer U> ? U : T;
     insert(value: T): T {
         this.#none = false;
         this.#value = value;
@@ -100,11 +100,11 @@ class _<T> {
         return this;
     }
 
-    is_none(): this is Is & None {
+    is_none(): this is Is<never> & None {
         return this.#none;
     }
 
-    is_some(): this is [T] extends [never] ? never : Is & Some<T> {
+    is_some(): this is [T] extends [never] ? never : Is<T> & Some<T> {
         return !this.#none;
     }
 
@@ -197,31 +197,31 @@ class _<T> {
         return result.is_err() ? Err(result.unwrap_err()) : Ok(Some(result.unwrap()));
     }
 
-    unwrap(): T {
+    unwrap(): this extends Is<infer U> ? U : T;
+    unwrap() {
         if (this.#none) throw new Error(`called on a \`None\` value`);
 
         return this.#value;
     }
 
-    unwrap_or(fallback: [T] extends [never] ? unknown : T): T;
+    unwrap_or(fallback: [T] extends [never] ? unknown : T): this extends Is<infer U> ? U : T;
     unwrap_or(fallback: T): T {
         if (this.#none) return fallback;
 
         return this.#value;
     }
 
-    unwrap_or_else(fallback: () => [T] extends [never] ? unknown : T): T;
+    unwrap_or_else(fallback: () => [T] extends [never] ? unknown : T): this extends Is<infer U> ? U : T;
     unwrap_or_else(fallback: () => T): T {
         if (this.#none) return fallback.call(undefined);
 
         return this.#value;
     }
 
-    unwrap_unchecked(): T {
+    unwrap_unchecked(): this extends Is<infer U> ? U : T;
+    unwrap_unchecked() {
         return this.#value;
     }
-
-    // need testing:
 
     unzip(): [T] extends [readonly [infer A, infer B]] ? [Some<A>, Some<B>] | [None, None] : never;
     unzip() {
@@ -266,8 +266,8 @@ class _<T> {
 }
 
 export interface is_some_and<T> {
-    <U extends T = T>(f: (item: T) => item is U): this is Is & Some<U>;
-    <_>(f: (item: T) => boolean): this is Is & Some<T>;
+    <U extends T = T>(f: (item: T) => item is U): this is Is<U> & Some<U>;
+    <_>(f: (item: T) => boolean): this is Is<T> & Some<T>;
 }
 
 export interface filter<T> {
@@ -277,7 +277,7 @@ export interface filter<T> {
 
 const narrowed = Symbol();
 
-export type Is = { [narrowed]: true };
+export type Is<T> = { [narrowed]: T };
 
 export const None = new _<never>();
 

@@ -51,10 +51,10 @@ export class Iter<T> {
         if (n < 0 || !Number.isInteger(n)) throw new TypeError(`n is not a nonnegative integer`);
 
         for (let i = 0, item; i < n; i++, item = this.next()) {
-            if (item?.is_none()) return Err(i); // Err
+            if (item?.is_none()) return Err(i);
         }
 
-        return Ok(undefined); // Ok
+        return Ok(undefined);
     }
 
     all(f: (item: T) => boolean): boolean {
@@ -260,7 +260,7 @@ export class Iter<T> {
     filter(f: (item: T) => boolean): Iter<T> {
         this.#consumed = true;
 
-        return new Iter(
+        return new Iter<T>(
             function* (this: Iter<T>) {
                 let item;
                 do {
@@ -281,7 +281,7 @@ export class Iter<T> {
     filter_map<U>(f: (item: T) => Option<U>): Iter<U> {
         this.#consumed = true;
 
-        return new Iter(
+        return new Iter<U>(
             function* (this: Iter<T>) {
                 let item;
                 do {
@@ -775,7 +775,7 @@ export class Iter<T> {
 
         this.#consumed = true;
 
-        return new Iter(
+        return new Iter<T>(
             function* (this: Iter<T>) {
                 this.#consumed = false;
 
@@ -857,7 +857,7 @@ export class Iter<T> {
 
         this.#consumed = true;
 
-        return new Iter(
+        return new Iter<T>(
             function* (this: Iter<T>) {
                 this.#consumed = false;
 
@@ -880,7 +880,7 @@ export class Iter<T> {
     take_while(predicate: (item: T) => boolean): Iter<T> {
         this.#consumed = true;
 
-        return new Iter(
+        return new Iter<T>(
             function* (this: Iter<T>) {
                 this.#consumed = false;
 
